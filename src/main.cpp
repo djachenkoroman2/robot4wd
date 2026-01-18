@@ -18,6 +18,7 @@ SimpleKalmanFilter kalmanFilter(0.005, 0.99, 0); // Q=0.01, R=0.1
 MovingAverageFilter MAFilter(20); 
 
 AbstractFilter& filter=kalmanFilter; 
+AbstractFilter& filter2=MAFilter; 
 
 void detect() {
     unsigned long currentTime = millis();
@@ -45,7 +46,8 @@ void setup() {
 
 void loop() {
     unsigned long currentTime = millis();
-    static float filteredSpeed = 0;
+    static float filteredSpeed = 0;    
+    static float filteredSpeed2 = 0;
     
     // Вычисляем скорость каждые 100 мс
     if (currentTime - lastCalcTime >= 100) {
@@ -64,9 +66,9 @@ void loop() {
                 speedRPM = 0;
             }
             
-            // Применяем фильтр Калмана
-            // filteredSpeed = kalmanFilter.update(speedRPM);
+            // Применяем фильтр 
             filteredSpeed = filter.update(speedRPM);
+            filteredSpeed2 = filter2.update(speedRPM);
         }
         
         lastCalcTime = currentTime;
@@ -77,7 +79,9 @@ void loop() {
     if (currentTime - lastPrintTime >= 100) {
         Serial.print(speedRPM);
         Serial.print(" ");
-        Serial.println(filteredSpeed, 1); // 1 знак после запятой
+        Serial.print(filteredSpeed, 1); 
+        Serial.print(" ");
+        Serial.println(filteredSpeed2, 1); 
         
         lastPrintTime = currentTime;
     }
