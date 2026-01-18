@@ -1,8 +1,12 @@
 #include <Arduino.h>
 #include"pins.h"
+#include"abstract_filter.h"
 #include"simple_kalman_filter.h"
+#include"moving_average_filter.h"
 
-const byte interruptPin = 2;
+
+
+// const byte interruptPin = 2;
 volatile unsigned int rot = 0;
 volatile unsigned long lastTime = 0;
 unsigned long speedRPM = 0;
@@ -11,6 +15,9 @@ unsigned long lastCalcTime = 0;
 
 // Создаем экземпляр фильтра Калмана
 SimpleKalmanFilter kalmanFilter(0.005, 0.99, 0); // Q=0.01, R=0.1
+MovingAverageFilter MAFilter(20); 
+
+AbstractFilter& filter=kalmanFilter; 
 
 void detect() {
     unsigned long currentTime = millis();
@@ -23,10 +30,11 @@ void detect() {
 }
 
 void setup() {
+
     Serial.begin(9600); // Увеличим скорость для отладки
     
-    pinMode(interruptPin, INPUT_PULLUP);
-    attachInterrupt(digitalPinToInterrupt(interruptPin), detect, RISING);
+    pinMode(PIN_SPD_SENSOR_1, INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt(PIN_SPD_SENSOR_1), detect, RISING);
     
     lastTime = millis();
     lastCalcTime = millis();
@@ -57,7 +65,8 @@ void loop() {
             }
             
             // Применяем фильтр Калмана
-            filteredSpeed = kalmanFilter.update(speedRPM);
+            // filteredSpeed = kalmanFilter.update(speedRPM);
+            filteredSpeed = filter.update(speedRPM);
         }
         
         lastCalcTime = currentTime;

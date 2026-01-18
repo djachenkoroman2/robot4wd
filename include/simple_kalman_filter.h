@@ -4,7 +4,7 @@
 #include"abstract_filter.h"
 
 
-class SimpleKalmanFilter : AbstractFilter {
+class SimpleKalmanFilter : public AbstractFilter {
 private:
     float Q; // Ковариация процесса (шум модели)
     float R; // Ковариация измерения (шум датчика)
