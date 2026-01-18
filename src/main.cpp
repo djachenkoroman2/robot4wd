@@ -1,13 +1,6 @@
 #include <Arduino.h>
-
-#define PIN_SPD_SENSOR_2 2
-#define PIN_SPD_SENSOR_1 18
-#define PIN_MOTORDRV1_ENA 7
-#define PIN_MOTORDRV1_IN1 8
-#define PIN_MOTORDRV1_IN2 9
-#define PIN_MOTORDRV1_ENB 3
-#define PIN_MOTORDRV1_IN3 5
-#define PIN_MOTORDRV1_IN4 4
+#include"abstract_filter.h"
+#include"pins.h"
 
 #define TIMER1 6000
 
