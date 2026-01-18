@@ -1,0 +1,71 @@
+#include <Arduino.h>
+
+const byte interruptPin = 2;
+unsigned int rot = 0;
+unsigned long int tm;
+unsigned long int spd = 0;
+unsigned int dt = 0;
+
+byte ena = 3;
+byte in1 = 4;
+byte in2 = 5;
+
+#define TIMER1 200
+
+long state=1;
+
+long Timer1=0;
+
+
+float Kp, Ki, Kd;
+float integral, pError;
+
+
+float computePID(float setpoint, float input, float dt) {
+    float error = setpoint - input;
+    float derivative = (error - pError) / dt;
+    pError = error;
+    integral += error * dt;
+    return error * Kp + integral * Ki + derivative * Kd;
+}
+
+void detect() {
+    rot++; // прибавляем единичку к счётчику обротов
+    dt = millis() - tm; // вычисляем время с последнего расчёта
+    if( dt >= 100 ){ // если прошло 100мс или более, то начинаем расчёт
+        spd = rot*60000/dt;
+        rot = 0; // обнуляем счётчик
+        tm = millis(); // запоминаем время расчёта
+    }
+}
+
+void setup() {
+
+    Serial.begin(9600);
+  
+    pinMode(interruptPin, INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt(interruptPin), detect, RISING);
+
+    tm = millis();
+
+    pinMode( ena, OUTPUT );
+    pinMode( in1, OUTPUT );
+    pinMode( in2, OUTPUT );
+
+    Timer1=millis();
+
+    Kp = 20;
+    Ki = 1;
+    Kd = 0;
+}
+void loop() {
+    if(millis()-Timer1>=300){
+        float out = computePID(2000, spd, 0.3);
+        int val = map(out,0,3200,0,255);
+        analogWrite( ena, val );
+        digitalWrite( in1, HIGH );
+        digitalWrite( in2, LOW );
+        Serial.println(spd);
+        Timer1=millis();
+    }
+}

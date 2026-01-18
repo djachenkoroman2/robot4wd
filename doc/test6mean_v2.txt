@@ -1,0 +1,81 @@
+#include <Arduino.h>
+
+const byte interruptPin = 2;
+volatile unsigned int rot = 0;
+volatile unsigned long lastTime = 0;
+unsigned long speedRPM = 0;
+unsigned long lastCalcTime = 0;
+
+// Параметры для EMA
+float alpha = 0.05; // Коэффициент сглаживания (0 < alpha <= 1)
+unsigned long filteredSpeedEMA = 0;
+bool firstValue = true;
+
+void detect() {
+    unsigned long currentTime = millis();
+    
+    if (currentTime - lastTime > 10) {
+        rot++;
+        lastTime = currentTime;
+    }
+}
+
+// Экспоненциальное скользящее среднее
+unsigned long calculateEMA(unsigned long newValue) {
+    if (firstValue) {
+        filteredSpeedEMA = newValue;
+        firstValue = false;
+    } else {
+        // EMA формула: filtered = alpha * new + (1 - alpha) * filtered
+        filteredSpeedEMA = (unsigned long)(alpha * newValue + (1 - alpha) * filteredSpeedEMA);
+    }
+    return filteredSpeedEMA;
+}
+
+void setup() {
+    Serial.begin(9600);
+    
+    pinMode(interruptPin, INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt(interruptPin), detect, RISING);
+    
+    lastTime = millis();
+    lastCalcTime = millis();
+}
+
+void loop() {
+    unsigned long currentTime = millis();
+    static unsigned long filteredSpeed = 0;
+    
+    if (currentTime - lastCalcTime >= 100) {
+        noInterrupts();
+        unsigned int rotations = rot;
+        rot = 0;
+        interrupts();
+        
+        if (lastCalcTime > 0) {
+            unsigned long timeDiff = currentTime - lastCalcTime;
+            if (timeDiff > 0 && rotations > 0) {
+                speedRPM = (rotations * 60000UL) / timeDiff;
+            } else {
+                speedRPM = 0;
+            }
+            
+            filteredSpeed = calculateEMA(speedRPM);
+        }
+        
+        lastCalcTime = currentTime;
+    }
+    
+    static unsigned long lastPrintTime = 0;
+    if (currentTime - lastPrintTime >= 100) {
+        Serial.print("Raw: ");
+        Serial.print(speedRPM);
+        Serial.print(" RPM | EMA: ");
+        // Serial.print("RPM ");
+        Serial.println(filteredSpeed);
+        
+        lastPrintTime = currentTime;
+    }
+    
+    delay(1);
+}

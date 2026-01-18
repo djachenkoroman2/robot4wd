@@ -1,0 +1,114 @@
+#include <Arduino.h>
+
+const byte interruptPin = 2;
+volatile unsigned int rot = 0;
+volatile unsigned long lastTime = 0;
+unsigned long speedRPM = 0;
+unsigned long lastCalcTime = 0;
+
+// Комбинированный фильтр: медиана + среднее
+const int FILTER_WINDOW = 55; // Нечетное число для медианы
+unsigned long filterBuffer[FILTER_WINDOW];
+int filterIndex = 0;
+
+// Функция для сортировки (для медианного фильтра)
+void bubbleSort(unsigned long arr[], int n) {
+    for (int i = 0; i < n-1; i++) {
+        for (int j = 0; j < n-i-1; j++) {
+            if (arr[j] > arr[j+1]) {
+                unsigned long temp = arr[j];
+                arr[j] = arr[j+1];
+                arr[j+1] = temp;
+            }
+        }
+    }
+}
+
+// Комбинированный фильтр: сначала медиана, затем среднее
+unsigned long applyFilter(unsigned long newValue) {
+    // Добавляем новое значение в буфер
+    filterBuffer[filterIndex] = newValue;
+    filterIndex = (filterIndex + 1) % FILTER_WINDOW;
+    
+    // Создаем копию буфера для сортировки
+    unsigned long sortedBuffer[FILTER_WINDOW];
+    for (int i = 0; i < FILTER_WINDOW; i++) {
+        sortedBuffer[i] = filterBuffer[i];
+    }
+    
+    // Сортируем для нахождения медианы
+    bubbleSort(sortedBuffer, FILTER_WINDOW);
+    
+    // Берем медиану (средний элемент)
+    unsigned long median = sortedBuffer[FILTER_WINDOW / 2];
+    
+    // Затем вычисляем среднее вокруг медианы (можно вернуть просто медиану)
+    unsigned long sum = 0;
+    for (int i = 0; i < FILTER_WINDOW; i++) {
+        sum += filterBuffer[i];
+    }
+    
+    return sum / FILTER_WINDOW; // или return median;
+}
+
+void detect() {
+    unsigned long currentTime = millis();
+    
+    if (currentTime - lastTime > 10) {
+        rot++;
+        lastTime = currentTime;
+    }
+}
+
+void setup() {
+    Serial.begin(9600);
+    
+    // Инициализация буфера фильтра
+    for (int i = 0; i < FILTER_WINDOW; i++) {
+        filterBuffer[i] = 0;
+    }
+    
+    pinMode(interruptPin, INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt(interruptPin), detect, RISING);
+    
+    lastTime = millis();
+    lastCalcTime = millis();
+}
+
+void loop() {
+    unsigned long currentTime = millis();
+    static unsigned long filteredSpeed = 0;
+    
+    if (currentTime - lastCalcTime >= 100) {
+        noInterrupts();
+        unsigned int rotations = rot;
+        rot = 0;
+        interrupts();
+        
+        if (lastCalcTime > 0) {
+            unsigned long timeDiff = currentTime - lastCalcTime;
+            if (timeDiff > 0 && rotations > 0) {
+                speedRPM = (rotations * 60000UL) / timeDiff;
+            } else {
+                speedRPM = 0;
+            }
+            
+            // Применяем фильтр
+            filteredSpeed = applyFilter(speedRPM);
+        }
+        
+        lastCalcTime = currentTime;
+    }
+    
+    static unsigned long lastPrintTime = 0;
+    if (currentTime - lastPrintTime >= 100) {
+        Serial.print("Raw: ");
+        Serial.print(speedRPM);
+        Serial.print(" RPM | Filtered: ");
+        Serial.print(filteredSpeed);
+        Serial.println(" RPM");
+        lastPrintTime = currentTime;
+    }
+    
+    delay(1);
+}

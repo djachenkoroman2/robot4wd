@@ -1,0 +1,73 @@
+#include <Arduino.h>
+
+const byte interruptPin = 2;
+unsigned int rot = 0;
+unsigned long int tm;
+unsigned long int spd = 0;
+unsigned int dt = 0;
+
+byte ena = 3;
+byte in1 = 4;
+byte in2 = 5;
+
+#define TIMER1 6000
+
+long state=1;
+
+long Timer1=0;
+
+void detect() {
+    rot++; // прибавляем единичку к счётчику обротов
+    dt = millis() - tm; // вычисляем время с последнего расчёта
+    if( dt >= 100 ){ // если прошло 100мс или более, то начинаем расчёт
+        spd = rot*60000/dt;
+        rot = 0; // обнуляем счётчик
+        tm = millis(); // запоминаем время расчёта
+    }
+}
+
+void setup() {
+
+    Serial.begin(9600);
+  
+    pinMode(interruptPin, INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt(interruptPin), detect, RISING);
+
+    tm = millis();
+
+    pinMode( ena, OUTPUT );
+    pinMode( in1, OUTPUT );
+    pinMode( in2, OUTPUT );
+
+    Timer1=millis();
+}
+void loop() {
+
+    if (state==1)
+    {
+        // выставляем 100% мощность на моторе А - 255 из 255
+        analogWrite( ena, 255 );
+        // выставляем режим мотора - вращение по часовой
+        digitalWrite( in1, HIGH );
+        digitalWrite( in2, LOW );
+        Serial.println(spd);
+        delay(100);
+    }
+
+    if (state==-1)
+    {
+        // выставляем мощность на мотора А - 150 из 255
+        analogWrite( ena, 150 );
+        // режим мотора - вращение против часовой
+        digitalWrite( in1, LOW );
+        digitalWrite( in2, HIGH );
+        Serial.println(spd);
+        delay(100); // пауза 3сек
+    }
+
+    if (millis()-Timer1>=TIMER1)
+    {
+        state=-1*state;
+        Timer1=millis();
+    }
+}

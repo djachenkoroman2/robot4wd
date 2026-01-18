@@ -1,0 +1,23 @@
+#include <Arduino.h>
+
+const byte interruptPin = 2; // контакт к которому подключен датчик
+long int rot = 0; // переменная для хранения количества оборотов
+
+// функция-обработчик, которая вызывается во время прерывания
+void detect() {
+    rot++;  
+}
+
+void setup() {
+    Serial.begin(9600);
+  
+    // настроим контакт D2 на вход, да ещё с подтяжкой к питанию
+    pinMode(interruptPin, INPUT_PULLUP);
+    // активируем прерывание и свяжем его с функцией detect
+    attachInterrupt(digitalPinToInterrupt(interruptPin), detect, RISING);
+}
+
+void loop() {
+    Serial.println(rot);
+    delay(100);
+}

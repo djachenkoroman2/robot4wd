@@ -1,0 +1,101 @@
+#include <Arduino.h>
+
+const byte interruptPin = 2;
+volatile unsigned int rot = 0;
+volatile unsigned long lastTime = 0;
+unsigned long speedRPM = 0;
+unsigned long lastCalcTime = 0;
+
+// Параметры для скользящего среднего
+const int WINDOW_SIZE = 20; // Размер окна усреднения
+unsigned long speedBuffer[WINDOW_SIZE]; // Буфер значений
+int bufferIndex = 0; // Текущий индекс в буфере
+bool bufferFilled = false; // Флаг заполнения буфера
+
+void detect() {
+    unsigned long currentTime = millis();
+    
+    // Антидребезг
+    if (currentTime - lastTime > 10) {
+        rot++;
+        lastTime = currentTime;
+    }
+}
+
+// Функция для вычисления скользящего среднего
+unsigned long calculateMovingAverage(unsigned long newValue) {
+    // Добавляем новое значение в буфер
+    speedBuffer[bufferIndex] = newValue;
+    bufferIndex = (bufferIndex + 1) % WINDOW_SIZE;
+    
+    // Отмечаем, что буфер заполнен после первого полного прохода
+    if (bufferIndex == 0) {
+        bufferFilled = true;
+    }
+    
+    // Вычисляем среднее значение
+    unsigned long sum = 0;
+    int count = bufferFilled ? WINDOW_SIZE : bufferIndex;
+    
+    for (int i = 0; i < count; i++) {
+        sum += speedBuffer[i];
+    }
+    
+    return (count > 0) ? (sum / count) : newValue;
+}
+
+void setup() {
+    Serial.begin(9600);
+    
+    // Инициализация буфера нулями
+    for (int i = 0; i < WINDOW_SIZE; i++) {
+        speedBuffer[i] = 0;
+    }
+    
+    pinMode(interruptPin, INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt(interruptPin), detect, RISING);
+    
+    lastTime = millis();
+    lastCalcTime = millis();
+}
+
+void loop() {
+    unsigned long currentTime = millis();
+    static unsigned long filteredSpeed = 0; // Отфильтрованное значение
+    
+    // Вычисляем скорость каждые 100 мс
+    if (currentTime - lastCalcTime >= 100) {
+        // Отключаем прерывания на время чтения/сброса переменной
+        noInterrupts();
+        unsigned int rotations = rot;
+        rot = 0;
+        interrupts();
+        
+        // Вычисляем RPM
+        if (lastCalcTime > 0) {
+            unsigned long timeDiff = currentTime - lastCalcTime;
+            if (timeDiff > 0 && rotations > 0) {
+                speedRPM = (rotations * 60000UL) / timeDiff;
+            } else {
+                speedRPM = 0;
+            }
+            
+            // Применяем скользящее среднее
+            filteredSpeed = calculateMovingAverage(speedRPM);
+        }
+        
+        lastCalcTime = currentTime;
+    }
+    
+    // Вывод значений
+    static unsigned long lastPrintTime = 0;
+    if (currentTime - lastPrintTime >= 100) {
+        //Serial.print(speedRPM);
+        //Serial.println(" ");
+        Serial.println(filteredSpeed);
+
+        lastPrintTime = currentTime;
+    }
+    
+    delay(1);
+}
