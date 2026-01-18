@@ -1,6 +1,6 @@
 // AbstractSensor.h
-#ifndef AbstractFilter_h
-#define AbstractFilter_h
+#ifndef abstract_filter_h
+#define abstract_filter_h
 
 class AbstractFilter {
   public:
