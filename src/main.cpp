@@ -1,17 +1,17 @@
 #include <Arduino.h>
 #include"pins.h"
+
 #include"abstract_filter.h"
+
 #include"simple_kalman_filter.h"
-#include"moving_average_filter.h"
+#include"ma_filter.h"
 #include"ema_filter.h"
+#include"ma_combo_filter.h"
 
-
-// const byte interruptPin = 2;
 volatile unsigned int rot = 0;
 volatile unsigned long lastTime = 0;
 unsigned long speedRPM = 0;
 unsigned long lastCalcTime = 0;
-
 
 // Создаем экземпляр фильтра Калмана
 SimpleKalmanFilter kalmanFilter(0.005, 0.99, 0); // Q=0.01, R=0.1

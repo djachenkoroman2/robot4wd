@@ -1,5 +1,5 @@
-#ifndef moving_average_filter_h
-#define moving_average_filter_h
+#ifndef ma_filter_h
+#define ma_filter_h
 
 #include"abstract_filter.h"
 
