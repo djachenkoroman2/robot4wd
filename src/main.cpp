@@ -8,6 +8,8 @@
 #include"ema_filter.h"
 #include"ma_combo_filter.h"
 
+#include"PID.h"
+
 volatile unsigned int rot = 0;
 volatile unsigned long lastTime = 0;
 unsigned long speedRPM = 0;
