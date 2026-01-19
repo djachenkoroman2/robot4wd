@@ -7,20 +7,17 @@ class  MAComboFilter : public AbstractFilter {
 
 private:
     int window_size;    
-    float * speedBuffer; // Буфер значений
-    int bufferIndex = 0; // Текущий индекс в буфере
-    bool bufferFilled = false; // Флаг заполнения буфера
 
     const int filter_window = 55; // Нечетное число для медианы
-    // unsigned long filterBuffer[FILTER_WINDOW];
+    float * filterBuffer;
     int filterIndex = 0;
     
     // Функция для сортировки (для медианного фильтра)
-    void bubbleSort(unsigned long arr[], int n) {
+    void bubbleSort(float arr[], int n) {
         for (int i = 0; i < n-1; i++) {
             for (int j = 0; j < n-i-1; j++) {
                 if (arr[j] > arr[j+1]) {
-                    unsigned long temp = arr[j];
+                    float temp = arr[j];
                     arr[j] = arr[j+1];
                     arr[j+1] = temp;
                 }
@@ -30,7 +27,28 @@ private:
 public:
     MAComboFilter(int ws=10){
         window_size=ws;
-        speedBuffer = new float[window_size];
+        filterBuffer = new float[window_size];
+    }
+
+    float update(float newValue) {
+        // Добавляем новое значение в буфер
+        filterBuffer[filterIndex] = newValue;
+        filterIndex = (filterIndex + 1) % window_size;
+        // Создаем копию буфера для сортировки
+        float * sortedBuffer=new float[window_size];
+        for (int i = 0; i < window_size; i++) {
+            sortedBuffer[i] = filterBuffer[i];
+        }
+        // Сортируем для нахождения медианы
+        bubbleSort(sortedBuffer, window_size);
+        // Берем медиану (средний элемент)
+        float median = sortedBuffer[window_size / 2];
+        // Затем вычисляем среднее вокруг медианы (можно вернуть просто медиану)
+        float sum = 0;
+        for (int i = 0; i < window_size; i++) {
+            sum += filterBuffer[i];
+        }
+        return sum / window_size; // или return median;
     }
 };
 

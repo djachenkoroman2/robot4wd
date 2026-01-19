@@ -14,22 +14,27 @@ unsigned long speedRPM = 0;
 unsigned long lastCalcTime = 0;
 
 // Создаем экземпляр фильтра Калмана
-SimpleKalmanFilter kalmanFilter(0.005, 0.99, 0); // Q=0.01, R=0.1
-MovingAverageFilter MAFilter(20); 
+SimpleKalmanFilter kalmanFilter1(0.005, 0.99, 0); // Q=0.01, R=0.1
+SimpleKalmanFilter kalmanFilter2(0.01, 0.7, 0); // Q=0.01, R=0.1
+MovingAverageFilter MAFilter(30); 
 EMAFilter emafilter(0.05); 
+MAComboFilter macomboFilter(55);
 
-AbstractFilter& filter1=kalmanFilter; 
+AbstractFilter& filter1=kalmanFilter1; 
+AbstractFilter& filter1_2=kalmanFilter2; 
+
 AbstractFilter& filter2=MAFilter; 
 AbstractFilter& filter3=emafilter; 
+AbstractFilter& filter4=macomboFilter; 
 
 void detect() {
     unsigned long currentTime = millis();
     
-    // Антидребезг
-    if (currentTime - lastTime > 10) {
+    // // Антидребезг
+    // if (currentTime - lastTime > 10) {
         rot++;
-        lastTime = currentTime;
-    }
+        // lastTime = currentTime;
+    // }
 }
 
 void setup() {
@@ -42,8 +47,7 @@ void setup() {
     lastTime = millis();
     lastCalcTime = millis();
     
-    Serial.println("Система измерения скорости с фильтром Калмана");
-    Serial.println("Формат: Raw,Filtered");
+    Serial.println("Raw Filtered1 Filtered2");
 }
 
 void loop() {
@@ -52,6 +56,7 @@ void loop() {
     static float filteredSpeed1 = 0;    
     static float filteredSpeed2 = 0;
     static float filteredSpeed3 = 0;
+    // static float filteredSpeed4 = 0;
     
     // Вычисляем скорость каждые 100 мс
     if (currentTime - lastCalcTime >= 100) {
@@ -71,9 +76,11 @@ void loop() {
             }
             
             // Применяем фильтр 
-            filteredSpeed1 = filter1.update(speedRPM);
-            filteredSpeed2 = filter2.update(speedRPM);
-            filteredSpeed3 = filter3.update(speedRPM);
+            filteredSpeed1 = filter2.update(speedRPM);
+            filteredSpeed2 = filter1_2.update(filteredSpeed1);
+            // filteredSpeed2 = filter2.update(speedRPM);
+            // filteredSpeed3 = filter3.update(speedRPM);
+            // filteredSpeed4 = filter4.update(speedRPM);
         }
         
         lastCalcTime = currentTime;
@@ -86,9 +93,11 @@ void loop() {
         Serial.print(" ");
         Serial.print(filteredSpeed1, 1); 
         Serial.print(" ");
-        Serial.print(filteredSpeed2, 1); 
-        Serial.print(" ");
-        Serial.println(filteredSpeed3, 1); 
+        Serial.println(filteredSpeed2, 1); 
+        // Serial.print(" ");
+        // Serial.println(filteredSpeed3, 1); 
+        // Serial.print(" ");
+        // Serial.println(filteredSpeed4, 1); 
         
         lastPrintTime = currentTime;
     }
