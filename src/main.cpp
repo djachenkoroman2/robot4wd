@@ -1,67 +1,45 @@
 #include <Arduino.h>
 #include"pins.h"
-
 #include"abstract_filter.h"
-
 #include"simple_kalman_filter.h"
 #include"ma_filter.h"
-#include"ema_filter.h"
-#include"ma_combo_filter.h"
-
 #include"PID.h"
 
+#define SERIALSPEED 9600
+#define DT 100
+
 volatile unsigned int rot = 0;
-volatile unsigned long lastTime = 0;
 unsigned long speedRPM = 0;
 unsigned long lastCalcTime = 0;
+unsigned long currentTime = 0;
+float filteredSpeed = 0;
 
-// Создаем экземпляр фильтра Калмана
-SimpleKalmanFilter kalmanFilter1(0.005, 0.99, 0); // Q=0.01, R=0.1
-SimpleKalmanFilter kalmanFilter2(0.01, 0.7, 0); // Q=0.01, R=0.1
+SimpleKalmanFilter kalmanFilter(0.01, 0.7, 0); // Q=0.01, R=0.1
 MovingAverageFilter MAFilter(30); 
-EMAFilter emafilter(0.05); 
-MAComboFilter macomboFilter(55);
 
-AbstractFilter& filter1=kalmanFilter1; 
-AbstractFilter& filter1_2=kalmanFilter2; 
+AbstractFilter& filter1=MAFilter; 
+AbstractFilter& filter2=kalmanFilter; 
 
-AbstractFilter& filter2=MAFilter; 
-AbstractFilter& filter3=emafilter; 
-AbstractFilter& filter4=macomboFilter; 
 
 void detect() {
-    unsigned long currentTime = millis();
-    
-    // // Антидребезг
-    // if (currentTime - lastTime > 10) {
-        rot++;
-        // lastTime = currentTime;
-    // }
+    rot++;
 }
 
 void setup() {
 
-    Serial.begin(9600); // Увеличим скорость для отладки
+    Serial.begin(SERIALSPEED); // Увеличим скорость для отладки
     
     pinMode(PIN_SPD_SENSOR_1, INPUT_PULLUP);
     attachInterrupt(digitalPinToInterrupt(PIN_SPD_SENSOR_1), detect, RISING);
-    
-    lastTime = millis();
+
     lastCalcTime = millis();
-    
-    Serial.println("Raw Filtered1 Filtered2");
 }
 
 void loop() {
-    unsigned long currentTime = millis();
 
-    static float filteredSpeed1 = 0;    
-    static float filteredSpeed2 = 0;
-    static float filteredSpeed3 = 0;
-    // static float filteredSpeed4 = 0;
-    
-    // Вычисляем скорость каждые 100 мс
-    if (currentTime - lastCalcTime >= 100) {
+    currentTime = millis();
+    if (currentTime - lastCalcTime >= SPEED_TIME_INTERVAL) 
+    {
         // Отключаем прерывания на время чтения/сброса переменной
         noInterrupts();
         unsigned int rotations = rot;
@@ -78,31 +56,21 @@ void loop() {
             }
             
             // Применяем фильтр 
-            filteredSpeed1 = filter2.update(speedRPM);
-            filteredSpeed2 = filter1_2.update(filteredSpeed1);
-            // filteredSpeed2 = filter2.update(speedRPM);
-            // filteredSpeed3 = filter3.update(speedRPM);
-            // filteredSpeed4 = filter4.update(speedRPM);
+            filteredSpeed = filter2.update(filter1.update(speedRPM));
         }
         
         lastCalcTime = currentTime;
     }
-    
+
+
+
     // Вывод значений
     static unsigned long lastPrintTime = 0;
-    if (currentTime - lastPrintTime >= 100) {
+    if (currentTime - lastPrintTime >= SPEED_TIME_INTERVAL) {
         Serial.print(speedRPM);
         Serial.print(" ");
-        Serial.print(filteredSpeed1, 1); 
-        Serial.print(" ");
-        Serial.println(filteredSpeed2, 1); 
-        // Serial.print(" ");
-        // Serial.println(filteredSpeed3, 1); 
-        // Serial.print(" ");
-        // Serial.println(filteredSpeed4, 1); 
-        
+        Serial.println(filteredSpeed, 1); 
         lastPrintTime = currentTime;
     }
-    
     delay(1);
 }
